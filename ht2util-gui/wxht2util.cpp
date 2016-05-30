@@ -47,8 +47,13 @@ mainFrame::mainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
 
 	//main menu
 	menuFile = new wxMenu;
-	menuFile->Append(wxID_OPEN, "&Open HT2 file...", "Open HT2 executable to be modified");
-	menuFile->Append(wxID_SAVE, "&Save HT2 file", "Save the current HT2 executable");
+	#ifndef __WINDOWS__
+		menuFile->Append(wxID_OPEN, "&Open HT2 file...", "Open HT2 executable to be modified");
+		menuFile->Append(wxID_SAVE, "&Save HT2 file", "Save the current HT2 executable");
+	#else
+		menuFile->Append(wxID_OPEN, "&Open HT2 file...\tCtrl-O", "Open HT2 executable to be modified");
+		menuFile->Append(wxID_SAVE, "&Save HT2 file\tCtrl-S", "Save the current HT2 executable");	
+	#endif
 	menuFile->Append(wxID_SAVEAS, "&Save HT2 file as...", "Save HT2 executable with a new name");
 	menuFile->Append(wxID_CLOSE, "&Close HT2 file", "Close the current HT2 executable");
 	menuFile->AppendSeparator();

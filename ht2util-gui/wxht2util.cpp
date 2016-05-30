@@ -862,7 +862,7 @@ void mainFrame::populateDirList(wxString currentDir) {
 
 		}
 	#else
-		if (currentFBDir.BeforeLast('\\' != "") dotdot = true;
+		if (currentFBDir.BeforeLast('\\') != "") dotdot = true;
 	#endif
 	//if (currentDir == "") dotdot = false;	//TODO: prevent loading beyond root directory
 	

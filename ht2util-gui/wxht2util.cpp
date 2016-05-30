@@ -1,10 +1,6 @@
 //ht2util-gui - ht2 savestate manager utility by utz 2015-16
 //version 0.0.2
 
-//done: add checksum recalculations on all ops
-//done: add info about free mem / state sizes in files
-//done: add ht version to savestate format, so we can check for necessary upgrade and incompatibility
-
 
 #include <wx/wxprec.h>		//use precompiled wx headers unless compiler does not support precompilation
 #ifndef WX_PRECOMP
@@ -18,14 +14,16 @@
 #include <wx/imaglist.h>
 #include <algorithm>
 
+#include "ht2util-gui.h"
+
 #define MAX_SUPPORTED_SAVESTATE_VERSION 1	//latest supported savestate version
 #ifndef __WINDOWS__
 	#define SEPERATOR "/"
+	#define SEPERATOR_CHAR '/'
 #else
 	#define SEPERATOR "\\"
+	#define SEPERATOR_CHAR '\\'
 #endif
-
-#include "ht2util-gui.h"
 
 mainFrame::mainFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
         : wxFrame(NULL, wxID_ANY, title, pos, size)
@@ -868,19 +866,7 @@ void mainFrame::populateDirList(wxString currentDir) {
 	
 	//get double dot
 	dotdot = false;
-	cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DOTDOT);
-	
-	#ifndef __WINDOWS__
-		if (cont) {
-			if (filename == "..") dotdot = true;
-			cont = dir.GetNext(&filename);
-			if (cont) dotdot = true;
-
-		}
-	#else
-		if (currentFBDir.BeforeLast('\\') != "") dotdot = true;
-	#endif
-	//if (currentDir == "") dotdot = false;	//TODO: prevent loading beyond root directory
+	if (currentFBDir.BeforeLast(SEPERATOR_CHAR) != "") dotdot = true;
 	
 	delete[] dirList;
 	delete[] fileList;
@@ -1026,24 +1012,19 @@ void mainFrame::OnListItemActivated(wxListEvent& event) {
 
 	long itemnr = event.GetIndex();
 	
-	
 	if (dotdot && (!itemnr)) {
-		#ifndef __WINDOWS__
-			if (currentFBDir.BeforeLast('/') != "") {
-				currentFBDir = currentFBDir.BeforeLast('/');
-				directoryList->DeleteAllItems();
-				populateDirList(currentFBDir);
-			}	
-		#else
-			if (currentFBDir.BeforeLast('\\') != "") {
-				currentFBDir = currentFBDir.BeforeLast('\\');
-				directoryList->DeleteAllItems();
-				populateDirList(currentFBDir);
-			}	
-		#endif
-		return;
-	}
 
+		if (currentFBDir.BeforeLast(SEPERATOR_CHAR) != "") {
+		
+			currentFBDir = currentFBDir.BeforeLast(SEPERATOR_CHAR);
+			directoryList->DeleteAllItems();
+			populateDirList(currentFBDir);
+			
+		}
+		
+		return;
+		
+	}
 
 
 	if ((itemnr >= dotdot) && (itemnr < noDirs + dotdot)) {
@@ -1059,16 +1040,18 @@ void mainFrame::OnListItemActivated(wxListEvent& event) {
 
 
 //get available savestate memory
-//TODO: seems calculation is inaccurate, available memory is slightly larger
 wxInt16 mainFrame::getFreeMem() {
 
 	//get first free mem address
 	unsigned firstFree = lutOffset + baseDiff + 32;
+	
 	for (int i = 0; i < 8; i++) {
+	
 		if (statebeg[i]+ statelen[i] > firstFree) firstFree = statebeg[i] + statelen[i] + 1;
+		
 	}
 
-	wxInt16 freeMem = (htsize - 75) - (firstFree - baseDiff);
+	wxInt16 freeMem = htsize - (firstFree - baseDiff) - 4;
 	if (legacyFileEnd) freeMem -= 2;
 
 	return freeMem;

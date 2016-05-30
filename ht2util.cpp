@@ -13,7 +13,7 @@ void readLUT(int fileoffset, int htv, char statev);
 void writeChecksum();
 int getLUToffset(char statev, unsigned filesize);
 int insertState(unsigned lutOffset, char statev);
-int removeState(unsigned lutOffset, char statev, bool legacyFileEnd);
+int removeState(unsigned lutOffset, char statev);
 int extractState(char statev);
 int decompressState(char statev);
 string getOutfileName(string suffix);
@@ -26,6 +26,7 @@ unsigned getBaseDiff(int model, int baseOffset);
 unsigned statebeg[8], statelen[8];
 const string calcversion[3] = { "82", "83", "83+/84+" };
 unsigned basediff, htver;
+bool legacyFileEnd;
 
 fstream HTFILE;
 
@@ -109,7 +110,7 @@ int main(int argc, char *argv[]){
 	
 	//determine savestate version
 	char statever;
-	bool legacyFileEnd = false;
+	legacyFileEnd = false;
 	if (tmodel == 0) {
 		HTFILE.seekg(-4, ios::end);		//read savestate version
 		HTFILE.read((&statever), 1);
@@ -165,7 +166,7 @@ int main(int argc, char *argv[]){
 		if (end == keys+14) cout << "e|d|i|r|q only, please.\n";
 		if (cmd == "e" || cmd == "E") extractState(statever);
 		if (cmd == "d" || cmd == "D") decompressState(statever);
-		if (cmd == "r" || cmd == "R") removeState(lutOffset, statever, legacyFileEnd);
+		if (cmd == "r" || cmd == "R") removeState(lutOffset, statever);
 		if (cmd == "i" || cmd == "I") insertState(lutOffset, statever);
 	}
 	//TODO: ext. ops: retune freq.tab, change samples
@@ -391,7 +392,9 @@ int insertState(unsigned int lutOffset, char statev) {
 	//check if there is sufficient space to insert the state
 	HTFILE.seekg(0, ios::end);
 	unsigned int htsize = HTFILE.tellg();
-	if ((firstfree - basediff + statesize) > (htsize - 77)) {		//-checksum -padding -versionbyte -header (should be 75 on htver>1)
+	unsigned char fileEndLength = 4;
+	if (legacyFileEnd) fileEndLength += 2;
+	if ((firstfree - basediff + statesize) > (htsize - fileEndLength)) {
 		cout << "Error: Not enough space to insert the savestate. Try deleting another savestate first.\n";
 		return -1;
 	}	
@@ -434,7 +437,7 @@ int insertState(unsigned int lutOffset, char statev) {
 
 
 //remove a savestate
-int removeState(unsigned lutOffset, char statev, bool legacyFileEnd) {
+int removeState(unsigned lutOffset, char statev) {
 
 	int stateno = getSavestateNo();
 	if (statelen[stateno] == 0) {				//trap empty savestates
@@ -503,13 +506,7 @@ int removeState(unsigned lutOffset, char statev, bool legacyFileEnd) {
 	//move data after the savestate to be deleted down in memory, replace remaining mem with zeroes	
 	fileoffset = statebeg[stateno] - basediff;
 	int length;
-	
-// 	if (model == 0 || statev != 1) {	//TODO: this is no longer true, applies to legacy files only
-// 		length = statesize - 3;		//2B checksum, 1B savestate version, 2 0-bytes if model != 0 && stateversion == 1)
-// 	}
-// 	else {
-// 		length = statesize - 5;
-// 	}
+
 	if (legacyFileEnd) length = statesize - 6;
 	else length = statesize - 4;
 

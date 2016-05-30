@@ -3,7 +3,7 @@
 
 //done: add checksum recalculations on all ops
 //done: add info about free mem / state sizes in files
-//TODO: add ht version to savestate format, so we can check for necessary upgrade and incompatibility!!!
+//done: add ht version to savestate format, so we can check for necessary upgrade and incompatibility
 
 
 #include <wx/wxprec.h>		//use precompiled wx headers unless compiler does not support precompilation
@@ -853,12 +853,17 @@ void mainFrame::populateDirList(wxString currentDir) {
 	//get double dot
 	dotdot = false;
 	cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DOTDOT);
-	if (cont) {
-		if (filename == "..") dotdot = true;
-		cont = dir.GetNext(&filename);
-		if (cont) dotdot = true;
+	
+	#ifndef __WINDOWS__
+		if (cont) {
+			if (filename == "..") dotdot = true;
+			cont = dir.GetNext(&filename);
+			if (cont) dotdot = true;
 
-	}
+		}
+	#else
+		if (currentFBDir.BeforeLast('\\' != "") dotdot = true;
+	#endif
 	//if (currentDir == "") dotdot = false;	//TODO: prevent loading beyond root directory
 	
 	delete[] dirList;
@@ -996,14 +1001,25 @@ void mainFrame::OnListItemActivated(wxListEvent& event) {
 
 	long itemnr = event.GetIndex();
 	
+	
 	if (dotdot && (!itemnr)) {
-		if (currentFBDir.BeforeLast('/') != "") {
-			currentFBDir = currentFBDir.BeforeLast('/');
-			directoryList->DeleteAllItems();
-			populateDirList(currentFBDir);
-		}
+		#ifndef __WINDOWS__
+			if (currentFBDir.BeforeLast('/') != "") {
+				currentFBDir = currentFBDir.BeforeLast('/');
+				directoryList->DeleteAllItems();
+				populateDirList(currentFBDir);
+			}	
+		#else
+			if (currentFBDir.BeforeLast('\\') != "") {
+				currentFBDir = currentFBDir.BeforeLast('\\');
+				directoryList->DeleteAllItems();
+				populateDirList(currentFBDir);
+			}	
+		#endif
 		return;
 	}
+
+
 
 	if ((itemnr >= dotdot) && (itemnr < noDirs + dotdot)) {
 	
@@ -1011,7 +1027,7 @@ void mainFrame::OnListItemActivated(wxListEvent& event) {
 		directoryList->DeleteAllItems();
 		populateDirList(currentFBDir);
 		return;
-	} 
+	}
 
 	return;	
 }
@@ -1123,7 +1139,7 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 	//get first free mem address
 	unsigned firstFree = lutOffset + baseDiff + 32;
 	for (int i = 0; i < 8; i++) {
-		if (statebeg[i]+ statelen[i] > firstFree) firstFree = statebeg[i] + statelen[i] + 1;
+		if (statebeg[i] + statelen[i] > firstFree) firstFree = statebeg[i] + statelen[i] + 1;
 	}
 
 	

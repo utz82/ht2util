@@ -790,9 +790,12 @@ void mainFrame::readLUT(int fileoffset) {
 			savestateList->SetItem(i, 2, temp);
 			savestateList->SetItem(i, 3, temp);
 		}
-		savestateList->SetColumnWidth(1,-1);
-		savestateList->SetColumnWidth(2,-1);
-		savestateList->SetColumnWidth(3,-1);
+		
+	}
+	
+	for (int j=0; j<4; j++) {
+	
+		savestateList->SetColumnWidth(j,wxLIST_AUTOSIZE);
 		
 	}
 		
@@ -812,7 +815,15 @@ void mainFrame::populateEmptySList() {
 		savestateList->SetItem(i, 1, temp);
 		savestateList->SetItem(i, 2, temp);
 		savestateList->SetItem(i, 3, temp);
+
 	}
+	
+	for (int j=0; j<4; j++) {
+	
+		savestateList->SetColumnWidth(j,wxLIST_AUTOSIZE);
+		
+	}
+
 	return;
 }
 
@@ -948,13 +959,22 @@ void mainFrame::populateDirList(wxString currentDir) {
 void mainFrame::clearSList() {
 
 	wxString temp;
+	savestateList->DeleteAllItems();
 	for (int i=0; i<8; i++) {
 		
 		temp.Printf(wxT("-----"));
 		savestateList->SetItem(i, 1, temp);
 		savestateList->SetItem(i, 2, temp);
 		savestateList->SetItem(i, 3, temp);
+		
 	}
+	
+	for (int j=0; j<4; j++) {
+	
+		savestateList->SetColumnWidth(j,wxLIST_AUTOSIZE);
+		
+	}
+	
 	return;
 }
 

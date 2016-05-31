@@ -13,7 +13,16 @@
 //get available savestate memory
 wxInt16 mainFrame::getFreeMem() {
 
-	//get first free mem address
+	wxInt16 freeMem = htsize - (getFirstFree() - baseDiff) - 4;
+	if (legacyFileEnd) freeMem -= 2;
+
+	return freeMem;
+}
+
+
+//get first free mem address
+unsigned mainFrame::getFirstFree() {
+
 	unsigned firstFree = lutOffset + baseDiff + 32;
 	
 	for (int i = 0; i < 8; i++) {
@@ -22,10 +31,8 @@ wxInt16 mainFrame::getFreeMem() {
 		
 	}
 
-	wxInt16 freeMem = htsize - (firstFree - baseDiff) - 4;
-	if (legacyFileEnd) freeMem -= 2;
-
-	return freeMem;
+	return firstFree;
+	
 }
 
 
@@ -271,7 +278,17 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 		return false;
 			
 	}
+
+	if (stateSize - 9 > getFreeMem()) {
 	
+		wxMessageDialog error5(NULL, wxT("Error: Not enough space to insert savestate.\nTry deleting something first."),
+		   wxT("Error"), wxOK_DEFAULT|wxICON_ERROR);
+		error5.ShowModal();
+		
+		delete[] stateData;
+		stateData = NULL;
+		return false;
+	}	
 	
 	//check version of the ht2s file again HT2 version
 	if (stateData[8] < htver) {
@@ -293,25 +310,7 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 	}
 	
 	//get first free mem address
-	unsigned firstFree = lutOffset + baseDiff + 32;
-	
-	for (int i = 0; i < 8; i++) {
-	
-		if (statebeg[i] + statelen[i] > firstFree) firstFree = statebeg[i] + statelen[i] + 1;
-		
-	}
-
-	
-	if ((firstFree - baseDiff + stateSize - 9) > (htsize - 77)) {	//TODO: this is inaccurate
-	
-		wxMessageDialog error5(NULL, wxT("Error: Not enough space to insert savestate.\nTry deleting something first."),
-		   wxT("Error"), wxOK_DEFAULT|wxICON_ERROR);
-		error5.ShowModal();
-		
-		delete[] stateData;
-		stateData = NULL;
-		return false;
-	}
+	unsigned firstFree = getFirstFree();
 	
 	//get first available slot
 	int stateno = 0;
@@ -339,7 +338,6 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 	htdata[writeOffset+2] = (unsigned char)((firstFree+stateSize-9) & 0xff);
 	htdata[writeOffset+3] = (unsigned char)(((firstFree+stateSize-9)/256) & 0xff);
 	
-	//recalculate checksum
 	writeChecksum();
 	
 	readLUT(lutOffset);

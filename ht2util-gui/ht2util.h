@@ -98,6 +98,7 @@ private:
 	void enableMenuItems();
     
 	int getBaseOffset(wxUint8 *htdata);
+	unsigned getFirstFree();
 	wxInt16 getFreeMem();
 	int getLUToffset(char statev, wxFileOffset filesize);
 	void readLUT(int fileoffset);

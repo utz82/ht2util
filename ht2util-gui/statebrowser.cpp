@@ -13,7 +13,7 @@
 void mainFrame::populateEmptySList() {
 
 	wxString temp;
-	for (int i=0; i<8; i++) {
+	for (long i=0; i<8; i++) {
 		
 		temp.Printf(wxT("%d"), i);
 		savestateList->InsertItem(i, temp, 0);
@@ -40,8 +40,8 @@ void mainFrame::populateEmptySList() {
 void mainFrame::clearSList() {
 
 	wxString temp;
-	savestateList->DeleteAllItems();
-	for (int i=0; i<8; i++) {
+
+	for (long i=0; i<8; i++) {
 		
 		temp.Printf(wxT("-----"));
 		savestateList->SetItem(i, 1, temp);

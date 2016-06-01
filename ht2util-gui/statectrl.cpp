@@ -296,11 +296,7 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 	
 	//check version of the ht2s file again HT2 version
 	if (stateData[8] < htver) {
-	
-// 		wxMessageDialog warn1(NULL, wxT("Warning: The savestate was extracted from an older version of HT2 than "
-// 		   "the one you're currently using.\nYou will need to manually adjust some effect commands."),
-// 		   wxT("Warning"), wxOK_DEFAULT|wxICON_WARNING);
-//  		warn1.ShowModal();
+
 		wxMessageDialog *askUpgrade = new wxMessageDialog(NULL, wxT("The savestate was extracted from an older version of HT2 than "
 		   "the one you're currently using.\n\nAttempt to automatically upgrade it?\n\n"
 		   "Note: This may not work correctly if you're using a beta version of HT2."), 
@@ -308,9 +304,11 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 		
 		if (askUpgrade->ShowModal() == wxID_YES) {
 		
+			askUpgrade->Destroy();
 			if (!upgradeState()) return false;
 		
-		}
+		} else askUpgrade->Destroy();
+		
 		
 	}
 	
@@ -649,7 +647,7 @@ bool mainFrame::upgradeState() {
 	//search for fx patterns that are used as custom drum data
 	bool usrDrum = false;
 	wxInt16 drumDataStart = stateSize;
-	wxInt16 drumDataEnd = stateSize;
+	wxInt16 drumDataEnd = 0;
 	
 	//check if custom user drum (Ex) is in use
 	for (int i = 0; i < fxPtnAmount; i++) {			
@@ -706,69 +704,72 @@ bool mainFrame::upgradeState() {
 	
 		fp++;
 		
-		if (stateData[8] < 10 && htver >= 10) {
+		if (fp < drumDataStart || fp > drumDataEnd) {
+		
+			if (stateData[8] < 10 && htver >= 10) {
 		
 			
-			for (int j = 0; j < 32; j+=2) {
+				for (int j = 0; j < 32; j+=2) {
 			
-				if ((stateData[fp + j] & 0xf) == 0xd) {					//remove Dxx
+					if ((stateData[fp + j] & 0xf) == 0xd) {					//remove Dxx
 					
-					//stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
-					stateData[fp + j] = stateData[fp + j] & 0xf0;
-					usedDxx = true;
+						//stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+						stateData[fp + j] = stateData[fp + j] & 0xf0;
+						usedDxx = true;
 				
-				}
+					}
 			
-				if ((stateData[fp + j] & 0xf) == 0xc) stateData[fp + j] += 1;		//Cxx -> Dxx
+					if ((stateData[fp + j] & 0xf) == 0xc) stateData[fp + j] += 1;		//Cxx -> Dxx
 				
-				if ((stateData[fp + j] & 0xf) == 0x4) {					//40x -> 58x
+					if ((stateData[fp + j] & 0xf) == 0x4) {					//40x -> 58x
 				
-					stateData[fp + j] += 1;
-					stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+						stateData[fp + j] += 1;
+						stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
 				
-				}
+					}
 				
-				if ((stateData[fp + j] & 0xf) == 0x2 && !stateData[fp + j + 1]) ambigiousTh = true;
+					if ((stateData[fp + j] & 0xf) == 0x2 && !stateData[fp + j + 1]) ambigiousTh = true;
 				
-				if ((stateData[fp + j] & 0xf) == 0x3 && !stateData[fp + j + 1]) {	//300 -> 9ff
+					if ((stateData[fp + j] & 0xf) == 0x3 && !stateData[fp + j + 1]) {	//300 -> 9ff
 				
-					stateData[fp + j] = (stateData[fp + j] & 0xf0) + 9;
-					stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+						stateData[fp + j] = (stateData[fp + j] & 0xf0) + 9;
+						stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
 				
-				}
+					}
 				
-				if ((stateData[fp + j] & 0xf) == 0x3) stateData[fp + j + 1] = static_cast<wxUint8>(256 - stateData[fp + j + 1]);	
+					if ((stateData[fp + j] & 0xf) == 0x3) stateData[fp + j + 1] = static_cast<wxUint8>(256 - stateData[fp + j + 1]);	
 			
+				}
+		
+			}
+		
+			if (stateData[8] < 12 && htver >= 12) {
+		
+				//warn about Fxx with xx > 0x3f
+				for (int j = 0; j < 32; j+=2) {
+			
+					if ((stateData[fp + j] & 0xf) == 0xf) {
+				
+						if (stateData[fp + j + 1] > 0x3f) unsupportedSpeed = true;
+				
+					}
+			
+				}
+		
+			}
+		
+			if (stateData[8] < 13 && htver >= 13) {
+		
+				//update Exx
+				for (int j = 0; j < 32; j+=2) {
+			
+					if ((stateData[fp + j] & 0xf) == 0xe) stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+			
+				}
+		
 			}
 		
 		}
-		
-		if (stateData[8] < 12 && htver >= 12) {
-		
-			//warn about Fxx with xx > 0x3f
-			for (int j = 0; j < 32; j+=2) {
-			
-				if ((stateData[fp + j] & 0xf) == 0xf) {
-				
-					if (stateData[fp + j + 1] > 0x3f) unsupportedSpeed = true;
-				
-				}
-			
-			}
-		
-		}
-		
-		if (stateData[8] < 13 && htver >= 13) {
-		
-			//update Exx
-			for (int j = 0; j < 32; j+=2) {
-			
-				if ((stateData[fp + j] & 0xf) == 0xe) stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
-			
-			}
-		
-		}
-		
 		
 		fp += 32;
 	

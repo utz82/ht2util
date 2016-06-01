@@ -245,10 +245,13 @@ void mainFrame::OnCloseHT(wxCommandEvent& WXUNUSED(event)) {
 				wxCANCEL | wxYES_NO | wxCANCEL_DEFAULT | wxICON_QUESTION);
 
 			wxInt16 response = unsavedChgMsg->ShowModal();
+			unsavedChgMsg->Destroy();
 			if (response == wxID_CANCEL) return;
 			else if (response == wxID_YES) saveHTFile();
 			
 		}
+
+		
 
 		wxTopLevelWindow::SetTitle("ht2util");
 		htFileInfo->SetLabel("model:\nHT2 version:\nsavestate version:");

@@ -76,23 +76,27 @@ unsigned mainFrame::getBaseDiff(int model, int baseOffset) {
 
 //returns the first file position after the internal file name
 int mainFrame::getBaseOffset(wxUint8 *htdata) {
+
 	const char vstr[5] = { 0x48, 0x54, 0x20, 0x32, 0x2e };	//"HT 2."
 	int vno = 0;
 	int fileoffset = 0x40;
 	bool foundPrgmHeader = false;
 
 	while ((!foundPrgmHeader) && (fileoffset < 0x80)) {
+	
 		fileoffset++;
 
 		if (htdata[fileoffset] == vstr[vno]) vno++;
 		else vno = 0;
 		
 		if (vno == 5) foundPrgmHeader = true;
+		
 	}
 	
 	if (!foundPrgmHeader) return 0xffff;
 	fileoffset++;
 	return fileoffset;
+	
 }
 
 
@@ -293,11 +297,21 @@ bool mainFrame::insertState(wxString currentStateDoc) {
 	//check version of the ht2s file again HT2 version
 	if (stateData[8] < htver) {
 	
-		wxMessageDialog warn1(NULL, wxT("Warning: The savestate was extracted from an older version of HT2 than "
-		   "the one you're currently using.\nYou will need to manually adjust some effect commands."),
-		   wxT("Warning"), wxOK_DEFAULT|wxICON_WARNING);
- 		warn1.ShowModal();
-	
+// 		wxMessageDialog warn1(NULL, wxT("Warning: The savestate was extracted from an older version of HT2 than "
+// 		   "the one you're currently using.\nYou will need to manually adjust some effect commands."),
+// 		   wxT("Warning"), wxOK_DEFAULT|wxICON_WARNING);
+//  		warn1.ShowModal();
+		wxMessageDialog *askUpgrade = new wxMessageDialog(NULL, wxT("The savestate was extracted from an older version of HT2 than "
+		   "the one you're currently using.\n\nAttempt to automatically upgrade it?\n\n"
+		   "Note: This may not work correctly if you're using a beta version of HT2."), 
+		   wxT("Upgrade state?"), wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION);
+		
+		if (askUpgrade->ShowModal() == wxID_YES) {
+		
+			if (!upgradeState()) return false;
+		
+		}
+		
 	}
 	
 	if (stateData[8] > htver) {
@@ -598,4 +612,185 @@ bool mainFrame::deleteState(long i) {
 	
 	return true;
 
+}
+
+
+bool mainFrame::upgradeState() {
+
+	wxInt16 fxBlockStart = 12;
+	wxUint8 stopByteCount = 0;
+	
+	//search for fx block start
+	for (; fxBlockStart < stateSize; fxBlockStart++) {
+	
+		if (stateData[fxBlockStart] == 0xff) stopByteCount++;
+		if (stopByteCount == 2) break;
+	
+	}
+	
+	if (stopByteCount != 2 || fxBlockStart+1 == stateSize) {
+	
+		wxMessageDialog error1(NULL, wxT("Error: Savestate is corrupt."),
+		   wxT("Error"), wxOK_DEFAULT|wxICON_ERROR);
+		error1.ShowModal();
+			
+		return false;
+	
+	}
+	
+	fxBlockStart++;
+	if (stateData[fxBlockStart] == 0xff) return true;		//no fx patterns present
+	
+	wxInt16 fp = fxBlockStart;
+	
+	//determine number of fx patterns
+	wxInt16 fxPtnAmount = static_cast<wxInt16>((stateSize - fxBlockStart - 1) / 33);
+	
+	//search for fx patterns that are used as custom drum data
+	bool usrDrum = false;
+	wxInt16 drumDataStart = stateSize;
+	wxInt16 drumDataEnd = stateSize;
+	
+	//check if custom user drum (Ex) is in use
+	for (int i = 0; i < fxPtnAmount; i++) {			
+	
+		fp++;
+			
+		for (int j = 0; j < 32; j+=2) {
+			
+			if ((stateData[fp] & 0xe0) == 0xe0) usrDrum = true;	
+			fp += 2;
+			
+		}
+	
+	}
+	
+	//get length of user drum data
+	if (usrDrum) {						
+
+		fp = fxBlockStart;
+		
+		for (int i = 0; i < fxPtnAmount; i++) {
+		
+			if ((stateData[fp] & 0x7f) == 0x20) {
+			
+				drumDataStart = fp;
+				
+				for (; fp < stateSize; fp++) {
+				
+					if (!stateData[fp]) break;
+				
+				}
+				
+				drumDataEnd = fp;
+				break;
+				
+			}
+			
+			fp += 33;
+		
+		}
+	
+	}
+	
+
+	bool unsupportedSpeed = false;
+	bool usedDxx = false;
+	bool ambigiousTh = false;
+	
+	if (stateData[9] > 0x3f && htver < 12) unsupportedSpeed = true;	
+	
+	fp = fxBlockStart;
+	
+	for (int i = 0; i < fxPtnAmount; i++) {
+	
+		fp++;
+		
+		if (stateData[8] < 10 && htver >= 10) {
+		
+			
+			for (int j = 0; j < 32; j+=2) {
+			
+				if ((stateData[fp + j] & 0xf) == 0xd) {					//remove Dxx
+					
+					//stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+					stateData[fp + j] = stateData[fp + j] & 0xf0;
+					usedDxx = true;
+				
+				}
+			
+				if ((stateData[fp + j] & 0xf) == 0xc) stateData[fp + j] += 1;		//Cxx -> Dxx
+				
+				if ((stateData[fp + j] & 0xf) == 0x4) {					//40x -> 58x
+				
+					stateData[fp + j] += 1;
+					stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+				
+				}
+				
+				if ((stateData[fp + j] & 0xf) == 0x2 && !stateData[fp + j + 1]) ambigiousTh = true;
+				
+				if ((stateData[fp + j] & 0xf) == 0x3 && !stateData[fp + j + 1]) {	//300 -> 9ff
+				
+					stateData[fp + j] = (stateData[fp + j] & 0xf0) + 9;
+					stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+				
+				}
+				
+				if ((stateData[fp + j] & 0xf) == 0x3) stateData[fp + j + 1] = static_cast<wxUint8>(256 - stateData[fp + j + 1]);	
+			
+			}
+		
+		}
+		
+		if (stateData[8] < 12 && htver >= 12) {
+		
+			//warn about Fxx with xx > 0x3f
+			for (int j = 0; j < 32; j+=2) {
+			
+				if ((stateData[fp + j] & 0xf) == 0xf) {
+				
+					if (stateData[fp + j + 1] > 0x3f) unsupportedSpeed = true;
+				
+				}
+			
+			}
+		
+		}
+		
+		if (stateData[8] < 13 && htver >= 13) {
+		
+			//update Exx
+			for (int j = 0; j < 32; j+=2) {
+			
+				if ((stateData[fp + j] & 0xf) == 0xe) stateData[fp + j + 1] = (stateData[fp + j + 1] & 0xf) + 0x80;
+			
+			}
+		
+		}
+		
+		
+		fp += 32;
+	
+	}
+	
+
+	//construct report
+	wxString reportMsg = "Savestate upgraded.";
+	
+	if (unsupportedSpeed || usedDxx || ambigiousTh) {
+	
+		reportMsg += "\nHowever, the upgrader ran into some problems that it could not resolve:\n\n";
+		if (unsupportedSpeed) reportMsg += "- Speeds higher than 0x3f were used. These have a different effect in this HT2 version.\n";
+		if (usedDxx) reportMsg += "- Effect Dxx was used. All occurances have been removed because the old Dxx behaviour is no longer supported.\n";
+		if (ambigiousTh) reportMsg += "- Effect 200 was used. This is ambigious and was left alone. You might need to update it manually.\n";
+		
+	}
+	
+	wxMessageDialog ureport(NULL, reportMsg,
+	   wxT("Upgrade Report"), wxOK_DEFAULT | wxICON_INFORMATION);
+	ureport.ShowModal();
+			
+
+	return true;
 }

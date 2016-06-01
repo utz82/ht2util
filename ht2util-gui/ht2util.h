@@ -5,6 +5,8 @@
 #include <wx/dnd.h>
 
 #define MAX_SUPPORTED_SAVESTATE_VERSION 1	//latest supported savestate version
+//#define RECENT_HTVERSION 20
+
 #ifndef __WINDOWS__
 	#define SEPERATOR "/"
 	#define SEPERATOR_CHAR '/'
@@ -120,6 +122,7 @@ private:
 	bool exportState(wxString currentStateDoc, wxInt16 itemnr);
 	bool deleteState(long itemnr);
 	bool exportAsm(wxString currentAsmDoc, long itemnr);
+	bool upgradeState();
     
 	wxDECLARE_EVENT_TABLE();
 };

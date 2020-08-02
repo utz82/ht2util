@@ -618,9 +618,9 @@ int decompressState(char statev) {
 		if (ibyte1 >= 0xd0 && ibyte1 < 0xe0) {
 			j = ibyte1 - 0xcf;
 			for (k = 0; k < j; k++) {
-				i++;
 				OUTFILE << "#0";
 				if ((i & 15) != 15 && ibyte1 != 0xff) OUTFILE << ", ";
+				i++;
 			}	
 		}
 		if (ibyte1 >= 0xe0 && ibyte1 < 0xff) {
@@ -663,6 +663,7 @@ int decompressState(char statev) {
 					OUTFILE << "#" << hex << +ibyte1;
 					if (j != 31) OUTFILE << ",";
 				}
+				OUTFILE << "\n";
 				i++;
 			}
 			else {
@@ -679,6 +680,7 @@ int decompressState(char statev) {
 					OUTFILE << "#" << hex << +ibyte1;
 					if (j != 31) OUTFILE << ",";
 				}
+				OUTFILE << "\n";
 				i++;
 			}
 	
